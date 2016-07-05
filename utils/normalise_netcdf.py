@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #Copyright 2009,2010 Alex Graves
 #
 # This file is part of RNNLIB.

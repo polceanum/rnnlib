@@ -160,6 +160,7 @@ int main(int argc, char *argv[]) {
       if (charWindowSizes.size()) {
         CHECK_STRICT(!sentence.empty(), "add --sentence=<what>");
       }
+      // TODO: Adjust sampling for bigger samples (discrete generation)
       out << "generating samples from network" << endl;
       DataSequence s(3);
       vector<real_t> shape(1, 1);

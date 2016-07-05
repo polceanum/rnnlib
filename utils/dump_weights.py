@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with RNNLIB.  If not, see <http://www.gnu.org/licenses/>.
 
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import sys
 from optparse import OptionParser
 from pylab import *
