@@ -153,6 +153,7 @@ int main(int argc, char *argv[]) {
     out << "loading dynamic data from " << conf.filename << endl;
     DataExportHandler::instance().load(conf, out);
     out << "epoch = " << trainer.epoch << endl << endl;
+    // Synthesis
     if (task == "prediction" && conf.get<bool>("sample", false)) {
       std::vector<int> charWindowSizes = conf.get_list<int>("charWindowSize");
       std::string sentence = conf.get<std::string>("sentence", "");

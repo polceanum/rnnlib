@@ -22,6 +22,7 @@ along with RNNLIB.  If not, see <http://www.gnu.org/licenses/>.*/
 #include "ClassificationLayer.hpp"
 #include "TranscriptionLayer.hpp"
 #include "MixtureOutputLayer.hpp"
+#include "BernoulliMixtureOutputLayer.hpp"
 
 struct MultilayerNet : public Mdrnn {
   MixtureSamplingLayer *samplingLayer;
@@ -114,9 +115,20 @@ struct MultilayerNet : public Mdrnn {
               ? add_output_layer(new MixtureOutputLayer(
                     out, outputName, conf.get<int>("mixtures", 20), sampleBias))
               : add_output_layer(samplingLayer = new MixtureSamplingLayer(
-                                     out, get_input_layer(), outputName,
+                                     out,
+                                     get_input_layer(),
+                                     outputName,
                                      conf.get<int>("mixtures", 20),
                                      sampleBias));
+    } else if (task == "binary_prediction") {
+      output =
+          samplingOutput == false
+              ? add_output_layer(new BernoulliMixtureOutputLayer(
+                    out, outputName))
+              : add_output_layer(new BernoulliMixtureSamplingLayer(
+                                     out,
+                                     get_input_layer(),
+                                     outputName));
     } else {
       check(false, "unknown task '" + task + "'");
     }
@@ -147,7 +159,9 @@ struct MultilayerNet : public Mdrnn {
   virtual void set_prime_length(int len) {
     samplingLayer->set_prime_length(len);
   }
-  virtual void set_sample_bias(real_t b) { samplingLayer->set_sample_bias(b); }
+  virtual void set_sample_bias(real_t b) {
+      samplingLayer->set_sample_bias(b);
+  }
 };
 
 #endif
