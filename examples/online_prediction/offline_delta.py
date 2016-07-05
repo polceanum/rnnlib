@@ -6,17 +6,19 @@ from optparse import OptionParser
 import sys
 import os
 import re
-from xml.dom.minidom import parse
+
+import cv2
+import numpy as np
 
 def Std(array,axis):
 	if shape(array)[axis]>1:
 		return (std(array,axis))
 	return array
 def GetTargetString(strokeFileName):
-         asciiFileName = re.sub('lineStrokes', 'ascii', strokeFileName)
-         asciiFileName = re.sub('-[0-9]+\.xml', '.txt', asciiFileName)
+         asciiFileName = re.sub('lineImages', 'ascii', strokeFileName)
+         asciiFileName = re.sub('-[0-9]+\.tif', '.txt', asciiFileName)
          try:
-                 lineNr = int(re.search('-([0-9]+)\.xml', strokeFileName).group(1))
+                 lineNr = int(re.search('-([0-9]+)\.tif', strokeFileName).group(1))
                  lines = [line.strip() for line in open(asciiFileName)]
                  return lines[lineNr+lines.index('CSR:') + 1]
          except (AttributeError, IndexError) as e:
@@ -29,15 +31,17 @@ parser = OptionParser()
 #parse command line options
 (options, args) = parser.parse_args()
 if (len(args)<2):
-	print "usage: -options input_filename output_filename"
+	print "usage: -options input_filename output_filename line_height"
 	print options
 	sys.exit(2)
 
 inputFilename = args [0]
 ncFilename = args[1]
+line_height = int(args[2])
 print options
 print "input filename", inputFilename
 print "data filename", ncFilename
+print "line height", line_height
 seqDims = []
 seqLengths = []
 targetStrings = []
@@ -57,17 +61,28 @@ for l in file(inputFilename).readlines():
                 targetStrings.append(seqTxt)			
 		oldlen = len(inputs)
                 oldlenPred = len(predictions)
-                firstCoord = array([])
-		for trace in parse(inkmlfile).getElementsByTagName('Stroke'):
-			for coords in trace.getElementsByTagName('Point'):
-				pt = array([float(coords.getAttribute('x').strip()), float(coords.getAttribute('y').strip())])
-                                last = array([float(pt[0]), float(pt[1]), 0.0])
-                                if len(firstCoord) == 0: firstCoord = last
-                                last = last - firstCoord
-				inputs.append(last)
-			inputs[-1][-1] = 1
+                firstCol = array([])
+# IMAGE PROCESSING PART
+                image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+                aspect = 100 / image.shape[0]
+                dim = (int(aspect * image.shape[1]), line_height)
+                if aspect < 1:
+                    # Shrinking should be done using INTER_AREA interpolation
+                    image = cv2.resize(image, dim, cv2.INTER_AREA)
+                else:
+                    # Scaling can be done using INTER_LINEAR interpolation
+                    image = cv2.resize(image, dim, cv2.INTER_LINEAR)
+
+                th, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+                for col in range(image.shape[1]):
+                    last_col = image[:, col]
+                    print last_col
+                    if len(firstCoord) == 0: firstCoord = last
+                    last = last - firstCoord
+                    inputs.append(last)
                 predictions.extend(inputs[oldlen+1:])
-                predictions.append([float(0.0), float(0.0), float(0.0)])
+                predictions.append(np.zeros((line_height, 1), dtype=uint8))
 		seqLengths.append(len(inputs) - oldlen)
 		predSeqLengths.append(len(predictions) - oldlenPred)
 		seqDims.append([seqLengths[-1]])
