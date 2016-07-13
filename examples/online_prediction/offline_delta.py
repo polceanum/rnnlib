@@ -11,9 +11,9 @@ import cv2
 import numpy as np
 
 def Std(array,axis):
-	if shape(array)[axis]>1:
-		return (std(array,axis))
-	return array
+    if shape(array)[axis]>1:
+        return (std(array,axis))
+    return array
 def GetTargetString(strokeFileName):
          asciiFileName = re.sub('lineImages', 'ascii', strokeFileName)
          asciiFileName = re.sub('-[0-9]+\.tif', '.txt', asciiFileName)
@@ -31,17 +31,19 @@ parser = OptionParser()
 #parse command line options
 (options, args) = parser.parse_args()
 if (len(args)<2):
-	print "usage: -options input_filename output_filename line_height"
-	print options
-	sys.exit(2)
+    print "usage: -options input_filename output_filename line_height max_space"
+    print options
+    sys.exit(2)
 
 inputFilename = args [0]
 ncFilename = args[1]
 line_height = int(args[2])
+max_space = int(args[3])
 print options
 print "input filename", inputFilename
 print "data filename", ncFilename
 print "line height", line_height
+print "max space", max_space
 seqDims = []
 seqLengths = []
 targetStrings = []
@@ -52,55 +54,103 @@ predictions = []
 predSeqLengths = []
 targetSeqDims = []
 print "reading data files"
+
 for l in file(inputFilename).readlines():
-	inkmlfile = l.strip()
-	if len(inkmlfile):
-		seqTags.append(inkmlfile)
-                wordTargetStrings.append(' ')
-                seqTxt = GetTargetString(inkmlfile)
-                targetStrings.append(seqTxt)			
-		oldlen = len(inputs)
-                oldlenPred = len(predictions)
-                firstCol = array([])
+    inkmlfile = l.strip()
+    if len(inkmlfile):
+        seqTags.append(inkmlfile)
+        wordTargetStrings.append(' ')
+        seqTxt = GetTargetString(inkmlfile)
+        targetStrings.append(seqTxt)
+        oldlen = len(inputs)
+        oldlenPred = len(predictions)
 # IMAGE PROCESSING PART
-                image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-                aspect = 100 / image.shape[0]
-                dim = (int(aspect * image.shape[1]), line_height)
-                if aspect < 1:
-                    # Shrinking should be done using INTER_AREA interpolation
-                    image = cv2.resize(image, dim, cv2.INTER_AREA)
-                else:
-                    # Scaling can be done using INTER_LINEAR interpolation
-                    image = cv2.resize(image, dim, cv2.INTER_LINEAR)
+        image = cv2.imread(inkmlfile, cv2.IMREAD_GRAYSCALE)
+        th, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-                th, image = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        left = -1
+        right = -1
+        top = -1
+        bottom = -1
 
-                for col in range(image.shape[1]):
-                    last_col = image[:, col]
-                    print last_col
-                    if len(firstCoord) == 0: firstCoord = last
-                    last = last - firstCoord
-                    inputs.append(last)
-                predictions.extend(inputs[oldlen+1:])
-                predictions.append(np.zeros((line_height, 1), dtype=uint8))
-		seqLengths.append(len(inputs) - oldlen)
-		predSeqLengths.append(len(predictions) - oldlenPred)
-		seqDims.append([seqLengths[-1]])
-		targetSeqDims.append([predSeqLengths[-1]])
+        for row in range(image.shape[0]):
+            if np.any(image[row, :]) and top < 0:
+                top = row
+            if np.any(image[image.shape[0] - row - 1, :]) and bottom < 0:
+                bottom = image.shape[0] - row - 1
+            if top > -1 and bottom > -1:
+                break
+
+        for col in range(image.shape[1]):
+            if np.any(image[:, col]) and left < 0:
+                left = col
+            if np.any(image[:, image.shape[1] - col - 1]) and right < 0:
+                right = image.shape[1] - col - 1
+            if left > -1 and right > -1:
+                break
+
+        print "Left: ", left, " Right: ", right
+        print "Top: ", top, " Bottom: ", bottom
+
+        image = image[top:bottom, left:right]
+
+        aspect = float(line_height) / float(image.shape[0])
+        dim = (int(aspect * image.shape[1]), line_height)
+        if aspect < 1:
+            # Shrinking should be done using INTER_AREA interpolation
+            image = cv2.resize(image, dim, cv2.INTER_AREA)
+        else:
+            # Scaling can be done using INTER_LINEAR interpolation
+            image = cv2.resize(image, dim, cv2.INTER_LINEAR)
+
+        inv = np.ones(image.shape, dtype=np.uint8)
+        cv2.bitwise_not(image, image, inv)
+        th, image = cv2.threshold(image, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # image /= 255
+
+        last_non_zero = 0
+        skipped = 0
+        non_skipped = 0
+        inputs.append(np.zeros((line_height), dtype=np.uint8))
+        for col in range(image.shape[1]):
+            last_col = image[:, col]
+            # if np.all(last_col) == 1:
+            #     last_non_zero += 1
+            #     # Hard threshold whitespaces
+            #     if last_non_zero > max_space:
+            #         skipped += 1
+            #         continue
+            #     else:
+            #         inputs.append(last_col)
+            #         non_skipped += 1
+            # else:
+            #     last_non_zero = 0
+            inputs.append(last_col)
+                # non_skipped += 1
+        # print("skipped:", skipped)
+        # print("non skipped:", non_skipped)
+        predictions.extend(inputs[oldlen+1:])
+        predictions.append(np.zeros((line_height), dtype=np.uint8))
+        print len(inputs)
+        print len(predictions)
+        print("delta", len(inputs) - oldlen)
+        seqLengths.append(len(inputs) - oldlen)
+        predSeqLengths.append(len(predictions) - oldlenPred)
+        seqDims.append([seqLengths[-1]])
+        targetSeqDims.append([predSeqLengths[-1]])
 
 
-firstIx = 0
-for i in range(len(seqLengths)):
-        for k in reversed(range(seqLengths[i])):
-                if k > 0:
-                        inputs[firstIx + k] = array(inputs[firstIx + k]) - array(inputs[firstIx + k - 1])
-                        inputs[firstIx + k][-1] = abs(inputs[firstIx + k][-1])
-                        predictions[firstIx + k - 1 ] = inputs[firstIx + k]
-                if k == 0:
-                        predictions[firstIx] = inputs[firstIx+1]
-        inputs[firstIx] = array([0, 0, 0])
-        firstIx += seqLengths[i]
-
+# firstIx = 0
+# for i in range(len(seqLengths)):
+#         for k in reversed(range(seqLengths[i])):
+#                 if k > 0:
+#                         inputs[firstIx + k] = array(inputs[firstIx + k]) - array(inputs[firstIx + k - 1])
+#                         inputs[firstIx + k][-1] = abs(inputs[firstIx + k][-1])
+#                         predictions[firstIx + k - 1 ] = inputs[firstIx + k]
+#                 if k == 0:
+#                         predictions[firstIx] = inputs[firstIx+1]
+#         inputs[firstIx] = np.zeros(line_height, dtype=uint8)
+#         firstIx += seqLengths[i]
 
 #create a new .nc file
 print ("open file %s", ncFilename)
