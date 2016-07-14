@@ -16,6 +16,7 @@
 # along with RNNLIB.  If not, see <http://www.gnu.org/licenses/>.
 
 from Scientific.IO.NetCDF import NetCDFFile
+from netCDF4 import Dataset
 from numpy import *
 
 def createNcDim(ncfile,name,d):
@@ -27,7 +28,8 @@ def	createNcVar(ncfile,vname,data,vtype,dims,desc):
 	print "creating netcdf variable",vname
 	nc_var = ncfile.createVariable (vname,vtype,dims)
 	nc_var.longname	= desc
-	nc_var.assignValue(data)
+        nc_var[:] = data
+        #nc_var.assignValue(data)
 	print shape(nc_var)
 
 def maxLen(strings):
