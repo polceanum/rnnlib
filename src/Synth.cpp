@@ -57,7 +57,9 @@ int main(int argc, char *argv[]) {
     cout << "repeated variables overwritten by last specified" << endl;
     exit(0);
   }
+
   ConfigFile conf(argv[argc - 1]);
+
   LOOP(int arg, span(1, argc - 1)) {
     vector<string> argument = split<string>(argv[arg], '=', 2);
     check(argument[0].substr(0, 2) == "--",
@@ -69,23 +71,29 @@ int main(int argc, char *argv[]) {
       conf.set_val<string>(varName, argument[1], false);
     }
   }
+
   bool autosave = conf.get<bool>("autosave", false);
+
   string configFilename;
+
   string task = conf.get<string>("task");
   CHECK_STRICT(task == "prediction", "must have prediction task");
   if (task == "prediction" && conf.get<int>("predictionSteps", 1) == 1) {
     task = conf.set_val<string>("task", "window-prediction");
   }
+
   bool display = conf.get<bool>("display", false);
   vector<int> jacobianCoords = conf.get_list<int>("jacobianCoords");
   bool gradCheck = conf.get<bool>("gradCheck", false);
   verbose = conf.get<bool>("verbose", false);
   int primeId = conf.get<int>("primeId", 0);
   primeId = bound(primeId, 0, 5);
+
   string dataset = conf.get<string>("dataset", "train");
   check(in(validDatasets, dataset),
         dataset + " given as 'dataset' parameter in config file '" +
             configFilename + "'\nmust be one of '" + str(validDatasets) + "'");
+
   string dataFileString = dataset + "File";
   ostream &out = cout;
   vector<string> dataFiles = conf.get_list<string>(dataFileString);

@@ -63,26 +63,34 @@ struct BernoulliMixtureOutputLayer : public NetworkOutput, public FlatLayer {
   }
 
   real_t calculate_errors(const DataSequence &seq) {
-    real_t loss = 0;
+    real_t seqLoss = 0;
 
     LOOP(int pt, span(seq.inputs.seq_size() - 1)) {
       const real_t *target_t = seq.targetPatterns[pt].begin();
 
       real_t *output = this->outputVariables[pt].begin();
-
+      real_t loss = 0;
+      real_t reg = 0;
+      
       for(size_t idx = 0; idx < this->outputVariables[pt].size(); ++idx) {
-          loss += (-(*target_t) * Log<real_t>(*output).log()) - ((1.0 - *target_t) * Log<real_t>(1.0 - *output).log());
+          loss += 255 * (((*target_t) - (*output)) * ((*target_t) - (*output)));
+          reg += 255 * fabs(1 - *output);
           ++output;
           ++target_t;
       }
+
+      loss /= this->outputVariables[pt].size();
+      seqLoss += (loss + 0.7 * reg);
 
       partial_derivs(pt, target_t);
       if (!runningGradTest) {
         bound_range(inputErrors[pt], -100.0, 100.0);
       }
     }
-    errorMap["loss"] = loss;
-    return loss;
+    
+
+    errorMap["loss"] = seqLoss;
+    return seqLoss;
   }
 
   void partial_derivs(int pt,
