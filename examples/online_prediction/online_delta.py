@@ -54,6 +54,7 @@ for l in file(inputFilename).readlines():
         seqTags.append(inkmlfile)
         wordTargetStrings.append(' ')
         seqTxt = GetTargetString(inkmlfile)
+        print seqTxt
         targetStrings.append(seqTxt)
         oldlen = len(inputs)
         oldlenPred = len(predictions)

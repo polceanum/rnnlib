@@ -54,6 +54,7 @@ predictions = []
 predSeqLengths = []
 targetSeqDims = []
 print "reading data files"
+cv2.namedWindow("asdf")
 
 for l in file(inputFilename).readlines():
     inkmlfile = l.strip()
@@ -89,8 +90,8 @@ for l in file(inputFilename).readlines():
             if left > -1 and right > -1:
                 break
 
-        print "Left: ", left, " Right: ", right
-        print "Top: ", top, " Bottom: ", bottom
+        # print "Left: ", left, " Right: ", right
+        # print "Top: ", top, " Bottom: ", bottom
 
         image = image[top:bottom, left:right]
 
@@ -103,37 +104,35 @@ for l in file(inputFilename).readlines():
             # Scaling can be done using INTER_LINEAR interpolation
             image = cv2.resize(image, dim, cv2.INTER_LINEAR)
 
-        inv = np.ones(image.shape, dtype=np.uint8)
-        cv2.bitwise_not(image, image, inv)
-        th, image = cv2.threshold(image, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        # image /= 255
-
+        # cv2.imshow("asdf", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         last_non_zero = 0
         skipped = 0
         non_skipped = 0
-        inputs.append(np.zeros((line_height), dtype=np.uint8))
+        inputs.append(np.zeros(line_height, np.uint8))
         for col in range(image.shape[1]):
             last_col = image[:, col]
-            # if np.all(last_col) == 1:
-            #     last_non_zero += 1
-            #     # Hard threshold whitespaces
-            #     if last_non_zero > max_space:
-            #         skipped += 1
-            #         continue
-            #     else:
-            #         inputs.append(last_col)
-            #         non_skipped += 1
-            # else:
-            #     last_non_zero = 0
-            inputs.append(last_col)
-                # non_skipped += 1
+            if np.any(last_col):
+                last_non_zero = 0
+                inputs.append(last_col)
+                non_skipped += 1
+            else:
+                last_non_zero += 1
+                # Hard threshold whitespaces
+                if last_non_zero > max_space:
+                    skipped += 1
+                    continue
+                else:
+                    inputs.append(last_col)
+                    non_skipped += 1
         # print("skipped:", skipped)
         # print("non skipped:", non_skipped)
         predictions.extend(inputs[oldlen+1:])
-        predictions.append(np.zeros((line_height), dtype=np.uint8))
-        print len(inputs)
-        print len(predictions)
-        print("delta", len(inputs) - oldlen)
+        predictions.append(np.zeros(line_height, dtype=np.uint8))
+        # print len(inputs)
+        # print len(predictions)
+        # print("delta", len(inputs) - oldlen)
         seqLengths.append(len(inputs) - oldlen)
         predSeqLengths.append(len(predictions) - oldlenPred)
         seqDims.append([seqLengths[-1]])
