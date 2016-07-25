@@ -189,12 +189,12 @@ int main(int argc, char *argv[]) {
         CHECK_STRICT(!sentence.empty(), "add --sentence=<what>");
       }
       out << "sentence:" << sentence << endl;
-      DataSequence s(3);
+      DataSequence s(300);
       const int MAX_SAMPLES = 3000;
       vector<real_t> shape(1, MAX_SAMPLES);
       s.inputs.reshape(shape, 0);
-      s.inputs.data[0] = -0.1968395;
-      s.inputs.data[1] = -0.003023848;
+//      s.inputs.data[0] = -0.1968395;
+//      s.inputs.data[1] = -0.003023848;
       s.targetSentence = sentence;
       int i = 0;
       net->set_prime_length(-1);
