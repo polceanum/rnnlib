@@ -24,16 +24,18 @@
 #include <boost/math/constants/constants.hpp>
 
 struct BernoulliMixtureOutputLayer : public NetworkOutput, public FlatLayer {
-  static const size_t plotSize = 100; // Size of output image corresponds to output neurons
 
+  int mPlotSize;
   ostream &out;
 
   SeqBuffer<real_t> outputVariables;
 
   BernoulliMixtureOutputLayer(ostream &o,
+                              const int plotSize,
                               const string &name)
       : FlatLayer(name, 1,
                   plotSize),
+        mPlotSize(plotSize),
         out(o),
         outputVariables(plotSize) {
     criteria += "loss";
@@ -61,28 +63,34 @@ struct BernoulliMixtureOutputLayer : public NetworkOutput, public FlatLayer {
   }
 
   real_t calculate_errors(const DataSequence &seq) {
-    Log<real_t> loss(0, true);
+    real_t seqLoss = 0;
 
     LOOP(int pt, span(seq.inputs.seq_size() - 1)) {
       const real_t *target_t = seq.targetPatterns[pt].begin();
 
       real_t *output = this->outputVariables[pt].begin();
-
+      real_t loss = 0;
+      real_t reg = 0;
+      
       for(size_t idx = 0; idx < this->outputVariables[pt].size(); ++idx) {
-          real_t eosProb = *target_t ? *output
-                                     : 1. - *output;
-          loss *= Log<real_t>(eosProb);
+          loss += 255 * (((*target_t) - (*output)) * ((*target_t) - (*output)));
+          reg += 255 * fabs(1 - *output);
           ++output;
           ++target_t;
       }
+
+      loss /= this->outputVariables[pt].size();
+      seqLoss += (loss + 0.7 * reg);
 
       partial_derivs(pt, target_t);
       if (!runningGradTest) {
         bound_range(inputErrors[pt], -100.0, 100.0);
       }
     }
-    errorMap["loss"] = -loss.log();
-    return -loss.log();
+    
+
+    errorMap["loss"] = seqLoss;
+    return seqLoss;
   }
 
   void partial_derivs(int pt,
@@ -96,10 +104,11 @@ struct BernoulliMixtureOutputLayer : public NetworkOutput, public FlatLayer {
   }
 
   virtual Vector<real_t> sample(int pt) {
-    Vector<real_t> rv(this->plotSize);
+    Vector<real_t> rv(this->mPlotSize);
     View<real_t> vars = outputVariables[pt];
     for(size_t idx = 0; idx < vars.size(); ++idx) {
-        rv[idx] = Random::bernoulli(vars[idx]) ? 1.0 : 0.0;
+        rv[idx] = vars[idx];
+        //rv[idx] = Random::bernoulli(vars[idx]) ? 1.0 : 0.0;
     }
     return rv;
   }
@@ -111,8 +120,9 @@ struct BernoulliMixtureSamplingLayer : public BernoulliMixtureOutputLayer {
 
   BernoulliMixtureSamplingLayer(ostream &o,
                                 Layer *input,
+                                const int plotSize,
                                 const string &name)
-      : BernoulliMixtureOutputLayer(o, name),
+      : BernoulliMixtureOutputLayer(o, plotSize, name),
         inputLayer(input),
         primeLen(-1) {
 

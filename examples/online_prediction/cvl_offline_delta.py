@@ -10,21 +10,6 @@ import re
 import cv2
 import numpy as np
 
-def Std(array,axis):
-    if shape(array)[axis]>1:
-        return (std(array,axis))
-    return array
-def GetTargetString(strokeFileName):
-         asciiFileName = re.sub('lineImages', 'ascii', strokeFileName)
-         asciiFileName = re.sub('-[0-9]+\.tif', '.txt', asciiFileName)
-         try:
-                 lineNr = int(re.search('-([0-9]+)\.tif', strokeFileName).group(1))
-                 lines = [line.strip() for line in open(asciiFileName)]
-                 return lines[lineNr+lines.index('CSR:') + 1]
-         except (AttributeError, IndexError) as e:
-                 raise SystemExit
-                 return ' '
-
 #command line options
 parser = OptionParser()
 
@@ -71,13 +56,14 @@ for dir in os.listdir(inputFilename):
                 dim = (int(aspect * image.shape[1]), line_height)
                 if aspect < 1:
                     # Shrinking should be done using INTER_AREA interpolation
-                    image = cv2.resize(image, dim, cv2.INTER_AREA)
+                    image = cv2.resize(image, dim, image, cv2.INTER_AREA)
                 else:
                     # Scaling can be done using INTER_LINEAR interpolation
-                    image = cv2.resize(image, dim, cv2.INTER_LINEAR)
+                    image = cv2.resize(image, dim, image, cv2.INTER_LINEAR)
 
                 # Convert type
                 image = image.astype(np.float32)
+                #print "new shape:", image.shape
 
                 inputs.append(np.zeros((3*line_height), dtype=np.float32))
                 for col in range(image.shape[1]):
@@ -87,9 +73,9 @@ for dir in os.listdir(inputFilename):
                     inputs.append(last_col)
                 predictions.extend(inputs[oldlen+1:])
                 predictions.append(np.zeros((3*line_height), dtype=np.float32))
-                print len(inputs)
-                print len(predictions)
-                print("delta", len(inputs) - oldlen)
+                #print len(inputs)
+                #print len(predictions)
+                #print("delta", len(inputs) - oldlen)
                 seqLengths.append(len(inputs) - oldlen)
                 predSeqLengths.append(len(predictions) - oldlenPred)
                 seqDims.append([seqLengths[-1]])
@@ -97,7 +83,8 @@ for dir in os.listdir(inputFilename):
 
 # #create a new .nc file
 print ("open file %s", ncFilename)
-file = netcdf_helpers.NetCDFFile(ncFilename, 'w')
+#file = netcdf_helpers.NetCDFFile(ncFilename, "wl")
+file = netcdf_helpers.Dataset(ncFilename, "w")
 
 #create the dimensions
 netcdf_helpers.createNcDim(file,'numSeqs',len(seqLengths))
@@ -105,7 +92,6 @@ netcdf_helpers.createNcDim(file,'numTimesteps',len(inputs))
 netcdf_helpers.createNcDim(file,'predNumTimesteps',len(predictions))
 netcdf_helpers.createNcDim(file,'inputPattSize',len(inputs[0]))
 netcdf_helpers.createNcDim(file,'numDims',1)
-
 
 #create the variables
 netcdf_helpers.createNcStrings(file,'seqTags',seqTags,('numSeqs','maxSeqTagLength'),'sequence tags')

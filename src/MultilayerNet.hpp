@@ -124,10 +124,13 @@ struct MultilayerNet : public Mdrnn {
       output =
           samplingOutput == false
               ? add_output_layer(new BernoulliMixtureOutputLayer(
-                    out, outputName))
+                    out,
+                    conf.get<int>("plot_size", 300),
+                    outputName))
               : add_output_layer(new BernoulliMixtureSamplingLayer(
                                      out,
                                      get_input_layer(),
+                                     conf.get<int>("plot_size", 300),
                                      outputName));
     } else {
       check(false, "unknown task '" + task + "'");
